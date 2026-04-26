@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VIP Live – Premium Streams</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet"/>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyApXJIZOaoQfSze9myODDs9Y6O2fW_IEwI",
+      authDomain: "vip-live-5a1c1.firebaseapp.com",
+      projectId: "vip-live-5a1c1",
+      storageBucket: "vip-live-5a1c1.firebasestorage.app",
+      messagingSenderId: "90875845422",
+      appId: "1:90875845422:web:83b8f3d4c3781f44f4f8bf"
+    };
+
+    const app      = initializeApp(firebaseConfig);
+    const auth     = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    // Google Login
+    window._googleLogin = async () => {
+      try {
+        const btn = document.getElementById("google-btn");
+        btn.disabled = true;
+        btn.innerHTML = `<div class="btn-spinner"></div> Signing in...`;
+        await signInWithPopup(auth, provider);
+      } catch(e) {
+        const btn = document.getElementById("google-btn");
+        btn.disabled = false;
+        btn.innerHTML = `<img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20"/> Continue with Google`;
+        console.error(e);
+      }
+    };
+
+    // Logout
+    window._logout = async () => {
+      await signOut(auth);
+    };
+
+    // Auth state
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        // Logged in — show website
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("main-website").style.display = "block";
+
+        // Set user info in header
+        document.getElementById("user-name").textContent = user.displayName?.split(" ")[0] || "User";
+        if (user.photoURL) {
+          document.getElementById("user-photo").src = user.photoURL;
+          document.getElementById("user-photo").style.display = "block";
+          document.getElementById("user-initial").style.display = "none";
+        } else {
+          document.getElementById("user-initial").textContent = (user.displayName || "U")[0];
+        }
+
+        // Save user to localStorage
+        localStorage.setItem("vip_user", JSON.stringify({
+          uid: user.uid,
+          name: user.displayName,
+          email: user.email,
+          photo: user.photoURL
+        }));
+
+      } else {
+        // Not logged in — show login screen
+        document.getElementById("login-screen").style.display = "flex";
+        document.getElementById("main-website").style.display = "none";
+        localStorage.removeItem("vip_user");
+      }
+    });
+  </script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0d0d0d;
+      color: #eee;
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ══════════════════════════════
+       LOGIN SCREEN
+    ══════════════════════════════ */
+    #login-screen {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: #0a0a12;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      padding: 20px;
+    }
+
+    .login-card {
+      background: #0f0f1c;
+      border: 1px solid rgba(231,76,60,0.2);
+      border-radius: 24px;
+      padding: 40px 28px;
+      width: 100%;
+      max-width: 360px;
+      text-align: center;
+      box-shadow: 0 0 80px rgba(231,76,60,0.08), 0 0 0 1px rgba(255,255,255,0.03);
+      animation: fadeInUp 0.5s ease;
+    }
+    @keyframes fadeInUp {
+      from { opacity:0; transform: translateY(30px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+
+    .login-logo {
+      font-family: 'Orbitron', monospace;
+      font-size: 2rem;
+      font-weight: 900;
+      color: #e74c3c;
+      letter-spacing: 3px;
+      margin-bottom: 4px;
+    }
+    .login-logo span { color: #f1c40f; }
+
+    .login-tagline {
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 2px;
+      margin-bottom: 32px;
+    }
+
+    /* Live preview cards animation */
+    .login-preview {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 28px;
+    }
+    .preview-card {
+      width: 70px;
+      height: 100px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+      overflow: hidden;
+    }
+    .preview-card::after {
+      content: "LIVE";
+      position: absolute;
+      top: 6px; left: 6px;
+      background: #e74c3c;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.4rem;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 3px;
+      letter-spacing: 1px;
+      animation: liveblink 1.3s infinite;
+    }
+    @keyframes liveblink {
+      0%,100%{ opacity:1; } 50%{ opacity:0.3; }
+    }
+    .preview-card:nth-child(1) { transform: rotate(-4deg); background: linear-gradient(135deg, #1a1228, #2d1b3d); }
+    .preview-card:nth-child(2) { transform: translateY(-8px); background: linear-gradient(135deg, #1a0a0a, #3d1b1b); }
+    .preview-card:nth-child(3) { transform: rotate(4deg); background: linear-gradient(135deg, #0a1a1a, #1b3d3d); }
+
+    .login-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+    .login-sub {
+      font-size: 0.78rem;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    /* Google Button */
+    #google-btn {
+      width: 100%;
+      background: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 13px 20px;
+      color: #333;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      letter-spacing: 0.5px;
+    }
+    #google-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    }
+    #google-btn:active { transform: scale(0.97); }
+    #google-btn:disabled { opacity: 0.7; cursor: not-allowed; }
+
+    .btn-spinner {
+      width: 16px; height: 16px;
+      border: 2px solid #ccc;
+      border-top-color: #333;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .login-terms {
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.2);
+      margin-top: 16px;
+      line-height: 1.6;
+    }
+    .login-terms strong { color: rgba(255,255,255,0.4); }
+
+    /* Live counter badge */
+    .live-counter {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(46,204,113,0.1);
+      border: 1px solid rgba(46,204,113,0.2);
+      border-radius: 20px;
+      padding: 5px 14px;
+      font-size: 0.72rem;
+      color: #2ecc71;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+    .live-dot-green {
+      width: 7px; height: 7px;
+      background: #2ecc71;
+      border-radius: 50%;
+      animation: blink-dot 1.4s infinite;
+    }
+    @keyframes blink-dot { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+    /* ══════════════════════════════
+       MAIN WEBSITE (hidden till login)
+    ══════════════════════════════ */
+    #main-website { display: none; }
+
+    /* ═══ HEADER ═══ */
+    .site-header {
+      background: #111;
+      border-bottom: 2px solid #c0392b;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 200;
+      gap: 10px;
+    }
+    .logo {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: #e74c3c;
+      letter-spacing: 2px;
+      flex-shrink: 0;
+    }
+    .logo span { color: #f1c40f; }
+
+    /* User info in header */
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .user-avatar {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 2px solid #e74c3c;
+      overflow: hidden;
+      background: linear-gradient(135deg, #e74c3c, #f1c40f);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700;
+      flex-shrink: 0;
+    }
+    #user-photo { width: 100%; height: 100%; object-fit: cover; display: none; }
+    #user-initial { color: #fff; }
+    #user-name {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #eee;
+      max-width: 70px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .logout-btn {
+      background: rgba(231,76,60,0.15);
+      border: 1px solid rgba(231,76,60,0.3);
+      color: #e74c3c;
+      border-radius: 6px;
+      padding: 3px 10px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: 'Rajdhani', sans-serif;
+      transition: background 0.2s;
+      letter-spacing: 0.5px;
+    }
+    .logout-btn:hover { background: rgba(231,76,60,0.25); }
+
+    .live-now-badge {
+      display: flex; align-items: center; gap: 5px;
+      font-size: 0.72rem; color: #aaa;
+      flex-shrink: 0;
+    }
+    .green-dot {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #2ecc71;
+      animation: blink-dot 1.4s infinite;
+    }
+
+    /* ═══ TAB BAR ═══ */
+    .tab-bar {
+      background: #1a1a1a;
+      display: flex;
+      position: sticky;
+      top: 50px;
+      z-index: 190;
+      border-bottom: 2px solid #2a2a2a;
+    }
+    .tab-item {
+      flex: 1;
+      text-align: center;
+      padding: 14px 4px 11px;
+      font-size: 1rem;
+      font-weight: 700;
+      color: #777;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: color 0.15s, border-color 0.15s;
+      white-space: nowrap;
+      font-family: 'Rajdhani', sans-serif;
+    }
+    .tab-item:hover { color: #ccc; }
+    .tab-item.active { color: #fff; border-bottom-color: #e74c3c; }
+
+    /* ═══ SECTION HEADING ═══ */
+    .sec-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 14px 8px;
+    }
+    .sec-head-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 2px;
+    }
+    .sec-head-tag {
+      font-size: 0.6rem;
+      border: 1px solid;
+      border-radius: 20px;
+      padding: 2px 8px;
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 1px;
+    }
+    .tag-g  { color: #ff6b9d; border-color: #ff6b9d; }
+    .tag-l  { color: #b76eff; border-color: #b76eff; }
+    .tag-c  { color: #ff9f43; border-color: #ff9f43; }
+    .tag-y  { color: #48dbfb; border-color: #48dbfb; }
+    .sec-line {
+      flex:1; height:1px;
+      background: linear-gradient(90deg, rgba(231,76,60,0.4), transparent);
+    }
+
+    /* ═══ GRID ═══ */
+    .grid-wrap { padding: 0 10px 20px; }
+    .stream-grid {
+      display: grid;
+      gap: 9px;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    @media(min-width:540px){ .stream-grid{ grid-template-columns: repeat(4,1fr); } }
+    @media(min-width:900px){ .stream-grid{ grid-template-columns: repeat(5,1fr); } }
+
+    /* ═══ STREAM CARD ═══ */
+    .stream-card {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      background: #1a1a22;
+      aspect-ratio: 9/14;
+      border: 1px solid rgba(255,255,255,0.05);
+      transition: transform 0.2s, box-shadow 0.2s;
+      user-select: none;
+    }
+    .stream-card:hover { transform: translateY(-3px) scale(1.02); box-shadow: 0 6px 24px rgba(231,76,60,0.3); }
+    .stream-card:active { transform: scale(0.97); }
+    .stream-card img { width:100%; height:100%; object-fit: cover; display: block; }
+    .card-grad { position: absolute; inset:0; background: linear-gradient(to top, rgba(0,0,0,0.88) 0%, transparent 55%); }
+    .live-pill {
+      position: absolute;
+      top: 6px; left: 6px;
+      background: #e74c3c;
+      color: #fff;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.5rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      letter-spacing: 1.5px;
+      animation: live-blink 1.3s infinite;
+      z-index: 4;
+    }
+    @keyframes live-blink {
+      0%,100%{ opacity:1; box-shadow:0 0 7px rgba(231,76,60,0.9); }
+      50%    { opacity:0.4; box-shadow:none; }
+    }
+    .offline-cover {
+      position: absolute; inset:0;
+      background: rgba(0,0,0,0.72);
+      display: flex; align-items:center; justify-content:center;
+      z-index: 8;
+    }
+    .offline-label { font-family:'Orbitron',monospace; font-size:0.6rem; color:#555; letter-spacing:2px; }
+    .card-info { position: absolute; bottom:0; left:0; right:0; padding: 7px 8px; z-index: 5; }
+    .card-name { font-size: 0.78rem; font-weight:700; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-shadow: 0 1px 3px rgba(0,0,0,0.9); }
+    .card-views { font-size: 0.68rem; color: #f1c40f; display:flex; align-items:center; gap:3px; margin-top:1px; }
+
+    footer { text-align:center; padding:24px 16px; font-size:0.72rem; color:#333; letter-spacing:1px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     LOGIN SCREEN
+══════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+
+    <div class="login-logo">VIP<span>LIVE</span></div>
+    <div class="login-tagline">PREMIUM LIVE STREAMS</div>
+
+    <!-- Fake preview cards -->
+    <div class="login-preview">
+      <div class="preview-card"></div>
+      <div class="preview-card"></div>
+      <div class="preview-card"></div>
+    </div>
+
+    <!-- Live counter -->
+    <div class="live-counter">
+      <div class="live-dot-green"></div>
+      31 LIVE NOW
+    </div>
+
+    <div class="login-title">Sign in to Continue</div>
+    <div class="login-sub">Access exclusive live streams.<br/>18+ only · Free to join</div>
+
+    <button id="google-btn" onclick="window._googleLogin()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20"/>
+      Continue with Google
+    </button>
+
+    <div class="login-terms">
+      By continuing you agree to our <strong>Terms of Service</strong><br/>
+      and confirm you are <strong>18 years or older</strong>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     MAIN WEBSITE
+══════════════════════════════════════ -->
+<div id="main-website">
+
+  <!-- HEADER -->
+  <div class="site-header">
+    <div class="logo">VIP<span>LIVE</span></div>
+    <div class="live-now-badge">
+      <div class="green-dot"></div>
+      <span id="total-live">31 LIVE NOW</span>
+    </div>
+    <!-- User info -->
+    <div class="user-info">
+      <div class="user-avatar">
+        <img id="user-photo" src="" alt=""/>
+        <span id="user-initial">U</span>
+      </div>
+      <span id="user-name">User</span>
+      <button class="logout-btn" onclick="window._logout()">LOGOUT</button>
+    </div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tab-bar" id="tab-bar">
+    <div class="tab-item active" data-sec="sec-girls">Girls</div>
+    <div class="tab-item"        data-sec="sec-lesbians">Lesbians</div>
+    <div class="tab-item"        data-sec="sec-couples">Couples</div>
+    <div class="tab-item"        data-sec="sec-gay">Gay</div>
+  </div>
+
+  <main>
+    <!-- SECTION 1: GIRLS -->
+    <div id="sec-girls">
+      <div class="sec-head">
+        <span style="font-size:1.1rem">💋</span>
+        <span class="sec-head-title">Girls</span>
+        <span class="sec-head-tag tag-g">HOT</span>
+        <div class="sec-line"></div>
+      </div>
+      <div class="grid-wrap"><div class="stream-grid" id="grid-girls"></div></div>
+    </div>
+
+    <!-- SECTION 2: LESBIANS -->
+    <div id="sec-lesbians">
+      <div class="sec-head">
+        <span style="font-size:1.1rem">🌸</span>
+        <span class="sec-head-title">Lesbians</span>
+        <span class="sec-head-tag tag-l">NEW</span>
+        <div class="sec-line"></div>
+      </div>
+      <div class="grid-wrap"><div class="stream-grid" id="grid-lesbians"></div></div>
+    </div>
+
+    <!-- SECTION 3: COUPLES -->
+    <div id="sec-couples">
+      <div class="sec-head">
+        <span style="font-size:1.1rem">💑</span>
+        <span class="sec-head-title">Couples</span>
+        <span class="sec-head-tag tag-c">POPULAR</span>
+        <div class="sec-line"></div>
+      </div>
+      <div class="grid-wrap"><div class="stream-grid" id="grid-couples"></div></div>
+    </div>
+
+    <!-- SECTION 4: GAY -->
+    <div id="sec-gay">
+      <div class="sec-head">
+        <span style="font-size:1.1rem">🏳️‍🌈</span>
+        <span class="sec-head-title">Gay</span>
+        <span class="sec-head-tag tag-y">TRENDING</span>
+        <div class="sec-line"></div>
+      </div>
+      <div class="grid-wrap"><div class="stream-grid" id="grid-gay"></div></div>
+    </div>
+  </main>
+
+  <footer>© 2024 VIPLive · Premium Content Platform · 18+ Only</footer>
+</div>
+
+<script>
+// ════════ PROFILES ════════
+const profiles = {
+  girls: [
+    { id:"g1",  name:"Priya Sharma",    img:"images/g1.jpg",  video:"v1.mp4",         offline:false },
+    { id:"g2",  name:"Anika Rao",       img:"images/g2.jpg",  video:"videos/v2.mp4",  offline:false },
+    { id:"g3",  name:"Divya Kapoor",    img:"images/g3.jpg",  video:"videos/v3.mp4",  offline:false },
+    { id:"g4",  name:"Sneha Verma",     img:"images/g4.jpg",  video:"videos/v4.mp4",  offline:false },
+    { id:"g5",  name:"Riya Malhotra",   img:"images/g5.jpg",  video:"videos/v5.mp4",  offline:false },
+    { id:"g6",  name:"Kavya Singh",     img:"images/g6.jpg",  video:"videos/v6.mp4",  offline:false },
+    { id:"g7",  name:"Pooja Gupta",     img:"images/g7.jpg",  video:"videos/v7.mp4",  offline:false },
+    { id:"g8",  name:"Meera Joshi",     img:"images/g8.jpg",  video:"videos/v8.mp4",  offline:false },
+    { id:"g9",  name:"Tanya Bhatia",    img:"images/g9.jpg",  video:"videos/v9.mp4",  offline:false },
+    { id:"g10", name:"Shreya Nair",     img:"images/g10.jpg", video:"videos/v10.mp4", offline:false },
+    { id:"g11", name:"Nikita Reddy",    img:"images/g11.jpg", video:"videos/v11.mp4", offline:false },
+    { id:"g12", name:"Sonal Mehta",     img:"images/g12.jpg", video:"videos/v12.mp4", offline:false },
+    { id:"g13", name:"Anjali Pandey",   img:"images/g13.jpg", video:"videos/v13.mp4", offline:false },
+    { id:"g14", name:"Komal Iyer",      img:"images/g14.jpg", video:"videos/v14.mp4", offline:false },
+    { id:"g15", name:"Simran Khatri",   img:"images/g15.jpg", video:"videos/v15.mp4", offline:false },
+  ],
+  lesbians: [
+    { id:"l1", name:"Asha & Prachi",  img:"l1.jpg",         video:"videos/l1.mp4", offline:false },
+    { id:"l2", name:"Ritu & Sameera", img:"images/l2.jpg",  video:"videos/l2.mp4", offline:false },
+    { id:"l3", name:"Nisha & Pooja",  img:"images/l3.jpg",  video:"videos/l3.mp4", offline:false },
+    { id:"l4", name:"Disha & Kanika", img:"images/l4.jpg",  video:"videos/l4.mp4", offline:false },
+    { id:"l5", name:"Siya & Tia",     img:"images/l5.jpg",  video:"videos/l5.mp4", offline:false },
+    { id:"l6", name:"Neha & Mansi",   img:"images/l6.jpg",  video:"videos/l6.mp4", offline:false },
+    { id:"l7", name:"Zara & Priya",   img:"images/l7.jpg",  video:"videos/l7.mp4", offline:false },
+  ],
+  couples: [
+    { id:"c1", name:"Raj & Simran",  img:"images/c1.jpg", video:"videos/c1.mp4", offline:false },
+    { id:"c2", name:"Aryan & Riya",  img:"images/c2.jpg", video:"videos/c2.mp4", offline:false },
+    { id:"c3", name:"Dev & Priya",   img:"images/c3.jpg", video:"videos/c3.mp4", offline:false },
+    { id:"c4", name:"Karan & Asha",  img:"images/c4.jpg", video:"videos/c4.mp4", offline:false },
+  ],
+  gay: [
+    { id:"y1", name:"Rohan & Kiran",   img:"images/y1.jpg", video:"videos/y1.mp4", offline:false },
+    { id:"y2", name:"Siddharth & Jay", img:"images/y2.jpg", video:"videos/y2.mp4", offline:false },
+    { id:"y3", name:"Aakash & Neil",   img:"images/y3.jpg", video:"videos/y3.mp4", offline:false },
+    { id:"y4", name:"Vikram & Arpit",  img:"images/y4.jpg", video:"videos/y4.mp4", offline:false },
+    { id:"y5", name:"Sam & Adi",       img:"images/y5.jpg", video:"videos/y5.mp4", offline:false },
+  ],
+};
+
+const vc = {};
+function initV(id, isGay) {
+  return isGay ? Math.floor(Math.random()*6)+5 : Math.floor(Math.random()*81)+20;
+}
+
+function buildGrid(gridId, items, cat) {
+  const el = document.getElementById(gridId);
+  el.innerHTML = "";
+  const isGay = cat === "Gay";
+  items.forEach(p => {
+    if (!vc[p.id]) vc[p.id] = initV(p.id, isGay);
+    const card = document.createElement("div");
+    card.className = "stream-card";
+    card.innerHTML = `
+      <img src="${p.img}" alt="${p.name}"
+        onerror="this.style.background='#181828';this.removeAttribute('src')"
+        loading="lazy"/>
+      <div class="card-grad"></div>
+      ${p.offline ? '' : '<div class="live-pill">LIVE</div>'}
+      <div class="card-info">
+        <div class="card-name">${p.name}</div>
+        <div class="card-views">👁 <span id="v-${p.id}">${vc[p.id]}</span></div>
+      </div>
+      ${p.offline ? '<div class="offline-cover"><span class="offline-label">⛔ OFFLINE</span></div>' : ''}
+    `;
+    if (!p.offline) {
+      card.addEventListener("click", () => {
+        localStorage.setItem("vip_profile", JSON.stringify({
+          id:p.id, name:p.name, img:p.img, video:p.video, category:cat, viewers:vc[p.id]
+        }));
+        window.location.href = "live.html";
+      });
+    }
+    el.appendChild(card);
+  });
+}
+
+buildGrid("grid-girls",    profiles.girls,    "Girls");
+buildGrid("grid-lesbians", profiles.lesbians, "Lesbians");
+buildGrid("grid-couples",  profiles.couples,  "Couples");
+buildGrid("grid-gay",      profiles.gay,      "Gay");
+
+const total = Object.values(profiles).flat().filter(p=>!p.offline).length;
+document.getElementById("total-live").textContent = `${total} LIVE NOW`;
+
+setInterval(() => {
+  Object.keys(vc).forEach(id => {
+    const el = document.getElementById(`v-${id}`);
+    if (!el) return;
+    const isGay = id.startsWith("y");
+    let v = vc[id] + Math.floor(Math.random()*5) - 2;
+    v = isGay ? Math.max(5,Math.min(10,v)) : Math.max(20,Math.min(100,v));
+    vc[id] = v;
+    el.textContent = v;
+  });
+}, 3000);
+
+// TAB BAR
+const tabs   = document.querySelectorAll(".tab-item");
+const OFFSET = 112;
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    const sec = document.getElementById(tab.dataset.sec);
+    if (!sec) return;
+    const top = sec.getBoundingClientRect().top + window.scrollY - OFFSET;
+    window.scrollTo({ top, behavior: "smooth" });
+    tabs.forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+  });
+});
+const secIds = ["sec-girls","sec-lesbians","sec-couples","sec-gay"];
+window.addEventListener("scroll", () => {
+  let cur = "sec-girls";
+  secIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && window.scrollY + OFFSET + 5 >= el.offsetTop) cur = id;
+  });
+  tabs.forEach(t => t.classList.remove("active"));
+  const found = [...tabs].find(t => t.dataset.sec === cur);
+  if (found) found.classList.add("active");
+}, { passive:true });
+</script>
+</body>
+</html>
