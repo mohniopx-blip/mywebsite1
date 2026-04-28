@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VIP Live – Premium Streams</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet"/>
+
+  <!-- Firebase -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, updateDoc, increment, serverTimestamp, getDoc }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyApXJIZOaoQfSze9myODDs9Y6O2fW_IEwI",
+      authDomain: "vip-live-5a1c1.firebaseapp.com",
+      projectId: "vip-live-5a1c1",
+      storageBucket: "vip-live-5a1c1.firebasestorage.app",
+      messagingSenderId: "90875845422",
+      appId: "1:90875845422:web:83b8f3d4c3781f44f4f8bf"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    // ══════════════════════════════════════════
+    // VISITOR TRACKING
+    // Uses sessionStorage so refreshing same tab
+    // doesn't count as a new visit
+    // ══════════════════════════════════════════
+    async function trackVisit() {
+      try {
+        const alreadyCounted = sessionStorage.getItem('visit_counted');
+        const statsRef = doc(db, 'siteStats', 'visitors');
+
+        // Always increment total_visits (every page load)
+        // unique_sessions only once per browser session
+        if (!alreadyCounted) {
+          sessionStorage.setItem('visit_counted', '1');
+
+          // Try to update existing doc
+          try {
+            await updateDoc(statsRef, {
+              total_visits:    increment(1),
+              unique_sessions: increment(1),
+              last_visit:      serverTimestamp(),
+            });
+          } catch (e) {
+            // Doc doesn't exist yet — create it
+            await setDoc(statsRef, {
+              total_visits:    1,
+              unique_sessions: 1,
+              last_visit:      serverTimestamp(),
+            });
+          }
+        } else {
+          // Same session, still count page view
+          try {
+            await updateDoc(statsRef, {
+              total_visits: increment(1),
+              last_visit:   serverTimestamp(),
+            });
+          } catch (e) {
+            await setDoc(statsRef, {
+              total_visits: 1,
+              unique_sessions: 1,
+              last_visit: serverTimestamp(),
+            });
+          }
+        }
+      } catch (err) {
+        // Silently fail — don't break the page
+        console.warn('Visit tracking error:', err);
+      }
+    }
+
+    trackVisit();
+  </script>
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0d0d0d; color: #eee; font-family: 'Rajdhani', sans-serif; min-height: 100vh; }
+
+    .site-header {
+      background:#111; border-bottom:2px solid #c0392b; padding:8px 14px;
+      display:flex; align-items:center; justify-content:space-between;
+      position:sticky; top:0; z-index:200; gap:10px;
+    }
+    .logo{font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:900;color:#e74c3c;letter-spacing:2px;flex-shrink:0}
+    .logo span{color:#f1c40f}
+    .live-now-badge{display:flex;align-items:center;gap:5px;font-size:0.72rem;color:#aaa;flex-shrink:0}
+    .green-dot{width:7px;height:7px;border-radius:50%;background:#2ecc71;animation:blink-dot 1.4s infinite}
+    @keyframes blink-dot{0%,100%{opacity:1}50%{opacity:0.2}}
+
+    .tab-bar{background:#1a1a1a;display:flex;position:sticky;top:50px;z-index:190;border-bottom:2px solid #2a2a2a}
+    .tab-item{flex:1;text-align:center;padding:14px 4px 11px;font-size:1rem;font-weight:700;color:#777;cursor:pointer;border-bottom:3px solid transparent;transition:color 0.15s,border-color 0.15s;white-space:nowrap;font-family:'Rajdhani',sans-serif}
+    .tab-item:hover{color:#ccc}
+    .tab-item.active{color:#fff;border-bottom-color:#e74c3c}
+
+    .sec-head{display:flex;align-items:center;gap:10px;padding:14px 14px 8px}
+    .sec-head-title{font-family:'Orbitron',monospace;font-size:0.9rem;font-weight:700;color:#fff;letter-spacing:2px}
+    .sec-head-tag{font-size:0.6rem;border:1px solid;border-radius:20px;padding:2px 8px;font-family:'Rajdhani',sans-serif;letter-spacing:1px}
+    .tag-g{color:#ff6b9d;border-color:#ff6b9d}
+    .tag-c{color:#ff9f43;border-color:#ff9f43}
+    .sec-line{flex:1;height:1px;background:linear-gradient(90deg,rgba(231,76,60,0.4),transparent)}
+
+    .grid-wrap{padding:0 10px 20px}
+    .stream-grid{display:grid;gap:9px;grid-template-columns:repeat(3,1fr)}
+    @media(min-width:540px){.stream-grid{grid-template-columns:repeat(4,1fr)}}
+    @media(min-width:900px){.stream-grid{grid-template-columns:repeat(5,1fr)}}
+
+    .stream-card{position:relative;border-radius:10px;overflow:hidden;cursor:pointer;background:#1a1a22;aspect-ratio:9/14;border:1px solid rgba(255,255,255,0.05);transition:transform 0.2s,box-shadow 0.2s;user-select:none}
+    .stream-card:hover{transform:translateY(-3px) scale(1.02);box-shadow:0 6px 24px rgba(231,76,60,0.3)}
+    .stream-card:active{transform:scale(0.97)}
+    .stream-card img{width:100%;height:100%;object-fit:cover;display:block}
+    .card-grad{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,0.88) 0%,transparent 55%)}
+    .live-pill{position:absolute;top:6px;left:6px;background:#e74c3c;color:#fff;font-family:'Orbitron',monospace;font-size:0.5rem;font-weight:700;padding:2px 6px;border-radius:3px;letter-spacing:1.5px;animation:live-blink 1.3s infinite;z-index:4}
+    @keyframes live-blink{0%,100%{opacity:1;box-shadow:0 0 7px rgba(231,76,60,0.9)}50%{opacity:0.4;box-shadow:none}}
+    .offline-cover{position:absolute;inset:0;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;z-index:8}
+    .offline-label{font-family:'Orbitron',monospace;font-size:0.6rem;color:#555;letter-spacing:2px}
+    .card-info{position:absolute;bottom:0;left:0;right:0;padding:7px 8px;z-index:5}
+    .card-name{font-size:0.78rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,0.9)}
+    .card-views{font-size:0.68rem;color:#f1c40f;display:flex;align-items:center;gap:3px;margin-top:1px}
+    footer{text-align:center;padding:24px 16px;font-size:0.72rem;color:#333;letter-spacing:1px}
+
+    /* ── PROFILE MODAL ── */
+    .modal-overlay{
+      display:none;position:fixed;inset:0;z-index:999;
+      background:rgba(0,0,0,0.85);backdrop-filter:blur(6px);
+      align-items:center;justify-content:center;padding:16px;
+    }
+    .modal-overlay.open{display:flex;animation:fadeIn 0.25s ease}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+    .modal-card{
+      background:#10101a;border:1px solid rgba(231,76,60,0.25);
+      border-radius:20px;width:100%;max-width:380px;overflow:hidden;
+      animation:slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      position:relative;
+    }
+    @keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+    .modal-close{
+      position:absolute;top:12px;right:12px;width:32px;height:32px;
+      border-radius:50%;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.1);
+      color:#aaa;font-size:1.1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;
+      z-index:10;transition:background 0.2s,color 0.2s;
+    }
+    .modal-close:hover{background:rgba(231,76,60,0.3);color:#fff}
+
+    .modal-photo-wrap{position:relative;height:220px;overflow:hidden}
+    .modal-photo{width:100%;height:100%;object-fit:cover;display:block}
+    .modal-photo-fallback{
+      width:100%;height:100%;
+      background:linear-gradient(135deg,#1a0a1a,#2d1b3d);
+      display:flex;align-items:center;justify-content:center;
+      font-size:4rem;
+    }
+    .modal-photo-grad{position:absolute;inset:0;background:linear-gradient(to top,#10101a 0%,transparent 60%)}
+    .modal-live-badge{
+      position:absolute;top:12px;left:12px;
+      background:#e74c3c;color:#fff;font-family:'Orbitron',monospace;
+      font-size:0.55rem;font-weight:700;padding:3px 8px;border-radius:4px;
+      letter-spacing:1.5px;animation:live-blink 1.3s infinite;
+    }
+    .modal-offline-badge{
+      position:absolute;top:12px;left:12px;
+      background:rgba(0,0,0,0.7);color:#666;font-family:'Orbitron',monospace;
+      font-size:0.55rem;padding:3px 8px;border-radius:4px;letter-spacing:1px;
+      border:1px solid #333;
+    }
+
+    .modal-body{padding:16px 18px 20px}
+    .modal-name-row{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+    .modal-name{font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:900;color:#fff;letter-spacing:1px}
+    .modal-age-chip{
+      background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);
+      color:#f1c40f;font-size:0.7rem;font-weight:700;border-radius:20px;padding:2px 10px;
+    }
+    .modal-views-row{display:flex;align-items:center;gap:6px;font-size:0.75rem;color:#888;margin-bottom:14px}
+    .modal-views-row span{color:#f1c40f;font-weight:700}
+
+    .modal-stats{display:flex;gap:10px;margin-bottom:16px}
+    .stat-box{
+      flex:1;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.07);
+      border-radius:10px;padding:10px 8px;text-align:center;
+      cursor:pointer;transition:transform 0.15s,background 0.2s;
+      user-select:none;
+    }
+    .stat-box.no-click{cursor:default;}
+    .stat-box:not(.no-click):hover{background:rgba(255,255,255,0.08);transform:scale(1.04)}
+    .stat-box:not(.no-click):active{transform:scale(0.95)}
+    .stat-box.liked{background:rgba(46,204,113,0.12);border-color:rgba(46,204,113,0.3)}
+    .stat-box.disliked{background:rgba(231,76,60,0.12);border-color:rgba(231,76,60,0.3)}
+    .stat-icon{font-size:1.2rem;margin-bottom:3px}
+    .stat-val{font-family:'Orbitron',monospace;font-size:1rem;font-weight:700}
+    .stat-val.likes{color:#2ecc71}
+    .stat-val.dislikes{color:#e74c3c}
+    .stat-val.views{color:#f1c40f}
+    .stat-label{font-size:0.62rem;color:#555;letter-spacing:1px;margin-top:2px}
+
+    .modal-section-title{
+      font-size:0.65rem;color:#555;letter-spacing:2px;
+      font-family:'Orbitron',monospace;margin-bottom:8px;margin-top:14px;
+    }
+    .modal-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+    .modal-tag{
+      font-size:0.72rem;font-weight:600;padding:4px 12px;border-radius:20px;
+      border:1px solid;letter-spacing:0.5px;
+    }
+    .tag-like{color:#2ecc71;border-color:rgba(46,204,113,0.3);background:rgba(46,204,113,0.06)}
+    .tag-dislike{color:#e74c3c;border-color:rgba(231,76,60,0.3);background:rgba(231,76,60,0.06)}
+
+    .modal-watch-btn{
+      width:100%;padding:14px;border-radius:12px;
+      background:linear-gradient(135deg,#e74c3c,#c0392b);
+      border:none;color:#fff;font-family:'Orbitron',monospace;
+      font-size:0.8rem;font-weight:700;letter-spacing:2px;cursor:pointer;
+      transition:transform 0.15s,box-shadow 0.2s;
+      box-shadow:0 4px 20px rgba(231,76,60,0.3);
+    }
+    .modal-watch-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(231,76,60,0.5)}
+    .modal-watch-btn:active{transform:scale(0.98)}
+    .modal-watch-btn.offline-btn{background:linear-gradient(135deg,#2a2a2a,#1a1a1a);color:#555;cursor:not-allowed;box-shadow:none}
+    .modal-watch-btn.offline-btn:hover{transform:none;box-shadow:none}
+
+    @keyframes bump{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
+    .bump{animation:bump 0.3s ease}
+  </style>
+</head>
+<body>
+
+  <div class="site-header">
+    <div class="logo">VIP<span>LIVE</span></div>
+    <div class="live-now-badge">
+      <div class="green-dot"></div>
+      <span id="total-live">0 LIVE NOW</span>
+    </div>
+  </div>
+
+  <div class="tab-bar" id="tab-bar">
+    <div class="tab-item active" data-sec="sec-girls">Girls</div>
+    <div class="tab-item" data-sec="sec-couples">Couples</div>
+  </div>
+
+  <main>
+    <div id="sec-girls">
+      <div class="sec-head">
+        <span style="font-size:1.1rem">💋</span>
+        <span class="sec-head-title">Girls</span>
+        <span class="sec-head-tag tag-g">HOT</span>
+        <div class="sec-line"></div>
+      </div>
+      <div class="grid-wrap"><div class="stream-grid" id="grid-girls"></div></div>
+    </div>
+
+    <div id="sec-couples">
+      <div class="sec-head">
+        <span style="font-size:1.1rem">💑</span>
+        <span class="sec-head-title">Couples</span>
+        <span class="sec-head-tag tag-c">POPULAR</span>
+        <div class="sec-line"></div>
+      </div>
+      <div class="grid-wrap"><div class="stream-grid" id="grid-couples"></div></div>
+    </div>
+  </main>
+
+  <footer>© 2024 VIPLive · Premium Content Platform · 18+ Only</footer>
+
+  <!-- PROFILE MODAL -->
+  <div class="modal-overlay" id="profileModal">
+    <div class="modal-card">
+      <button class="modal-close" id="modalClose">✕</button>
+      <div class="modal-photo-wrap">
+        <img class="modal-photo" id="modalPhoto" src="" alt="" onerror="this.style.display='none';document.getElementById('modalPhotoFallback').style.display='flex'"/>
+        <div class="modal-photo-fallback" id="modalPhotoFallback" style="display:none">👤</div>
+        <div class="modal-photo-grad"></div>
+        <div id="modalLiveBadge" class="modal-live-badge">● LIVE</div>
+        <div id="modalOfflineBadge" class="modal-offline-badge">⛔ OFFLINE</div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-name-row">
+          <div class="modal-name" id="modalName">—</div>
+          <div class="modal-age-chip" id="modalAge">Age 25</div>
+        </div>
+        <div class="modal-views-row">👁 <span id="modalViews">0</span> viewers right now</div>
+        <div class="modal-stats">
+          <div class="stat-box" id="likeBox">
+            <div class="stat-icon">👍</div>
+            <div class="stat-val likes" id="modalLikes">0</div>
+            <div class="stat-label">LIKES</div>
+          </div>
+          <div class="stat-box" id="dislikeBox">
+            <div class="stat-icon">👎</div>
+            <div class="stat-val dislikes" id="modalDislikes">0</div>
+            <div class="stat-label">DISLIKES</div>
+          </div>
+          <div class="stat-box no-click">
+            <div class="stat-icon">🔥</div>
+            <div class="stat-val views" id="modalRating">0%</div>
+            <div class="stat-label">RATING</div>
+          </div>
+        </div>
+        <div class="modal-section-title">✓ LIKES</div>
+        <div class="modal-tags" id="modalLikeTags"></div>
+        <div class="modal-section-title">✗ DISLIKES</div>
+        <div class="modal-tags" id="modalDislikeTags"></div>
+        <button class="modal-watch-btn" id="modalWatchBtn">▶ WATCH LIVE</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const rnd = (a,b) => Math.floor(Math.random()*(b-a+1))+a;
+
+const likesPool = [
+  "Dancing","Chatting","Music","Gaming","Cooking","Fitness","Travel","Reading",
+  "Art","Fashion","Movies","Photography","Yoga","Shopping","Singing","Comedy",
+  "Makeup","Sports","Night Owls","Good Vibes"
+];
+const dislikesPool = [
+  "Rude people","Spam","Fake users","Ghosting","Drama","Negativity","Late sleepers","Boring talks"
+];
+
+function pickRandom(arr, n) {
+  const a = [...arr]; const r = [];
+  while(r.length < n && a.length) {
+    const i = Math.floor(Math.random()*a.length);
+    r.push(a.splice(i,1)[0]);
+  }
+  return r;
+}
+
+const profiles = {
+  girls: [
+    { id:"g1",  name:"Priya Sharma",  img:"g1.jpg",  offline:false, age:24, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g2",  name:"Anika Rao",     img:"g2.jpg",  offline:false, age:26, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g3",  name:"Divya Kapoor",  img:"g3.jpg",  offline:true,  age:25, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g4",  name:"Sneha Verma",   img:"g4.jpg",  offline:false, age:28, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g5",  name:"Riya Malhotra", img:"g5.jpg",  offline:true,  age:27, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g6",  name:"Kavya Singh",   img:"g6.jpg",  offline:false, age:24, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g7",  name:"Pooja Gupta",   img:"g7.jpg",  offline:false, age:29, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g8",  name:"Meera Joshi",   img:"g8.jpg",  offline:true,  age:26, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g9",  name:"Tanya Bhatia",  img:"g9.jpg",  offline:false, age:25, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g10", name:"Shreya Nair",   img:"g10.jpg", offline:false, age:30, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g11", name:"Nikita Reddy",  img:"g11.jpg", offline:true,  age:27, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g12", name:"Sonal Mehta",   img:"g12.jpg", offline:false, age:24, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g13", name:"Anjali Pandey", img:"g13.jpg", offline:false, age:28, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g14", name:"Komal Iyer",    img:"g14.jpg", offline:true,  age:26, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"g15", name:"Simran Khatri", img:"g15.jpg", offline:false, age:25, likes:rnd(60,100), dislikes:rnd(1,5) },
+  ],
+  couples: [
+    { id:"c1", name:"Annu & Simran", img:"c1.jpg", offline:false, age:25, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"c2", name:"Aryan & Riya",  img:"c2.jpg", offline:true,  age:27, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"c3", name:"Dev & Priya",   img:"c3.jpg", offline:false, age:26, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"c4", name:"Karan & Asha",  img:"c4.jpg", offline:false, age:28, likes:rnd(60,100), dislikes:rnd(1,5) },
+    { id:"c5", name:"Rahul & Tanu",  img:"c5.jpg", offline:true,  age:24, likes:rnd(60,100), dislikes:rnd(1,5) },
+  ],
+};
+
+const profileMeta = {};
+[...profiles.girls, ...profiles.couples].forEach(p => {
+  profileMeta[p.id] = {
+    likeTags:    pickRandom(likesPool, rnd(3,5)),
+    dislikeTags: pickRandom(dislikesPool, rnd(2,3)),
+  };
+});
+
+const vc = {};
+[...profiles.girls, ...profiles.couples].forEach(p => {
+  vc[p.id] = p.offline ? 0 : rnd(20, 100);
+});
+
+const userVotes = {};
+[...profiles.girls, ...profiles.couples].forEach(p => { userVotes[p.id] = null; });
+
+let currentProfile = null;
+
+function updateRating(p) {
+  const rating = Math.round((p.likes / (p.likes + p.dislikes)) * 100);
+  document.getElementById("modalRating").textContent = rating + "%";
+}
+
+function animateBump(el) {
+  el.classList.remove("bump");
+  void el.offsetWidth;
+  el.classList.add("bump");
+  el.addEventListener("animationend", () => el.classList.remove("bump"), { once: true });
+}
+
+document.getElementById("likeBox").addEventListener("click", () => {
+  if (!currentProfile) return;
+  const p = currentProfile;
+  const prev = userVotes[p.id];
+  if (prev === "like") {
+    p.likes--; userVotes[p.id] = null;
+    document.getElementById("likeBox").classList.remove("liked");
+  } else {
+    p.likes++; userVotes[p.id] = "like";
+    document.getElementById("likeBox").classList.add("liked");
+    animateBump(document.getElementById("modalLikes"));
+    if (prev === "dislike") {
+      p.dislikes--;
+      document.getElementById("dislikeBox").classList.remove("disliked");
+      document.getElementById("modalDislikes").textContent = p.dislikes;
+    }
+  }
+  document.getElementById("modalLikes").textContent = p.likes;
+  updateRating(p);
+});
+
+document.getElementById("dislikeBox").addEventListener("click", () => {
+  if (!currentProfile) return;
+  const p = currentProfile;
+  const prev = userVotes[p.id];
+  if (prev === "dislike") {
+    p.dislikes--; userVotes[p.id] = null;
+    document.getElementById("dislikeBox").classList.remove("disliked");
+  } else {
+    p.dislikes++; userVotes[p.id] = "dislike";
+    document.getElementById("dislikeBox").classList.add("disliked");
+    animateBump(document.getElementById("modalDislikes"));
+    if (prev === "like") {
+      p.likes--;
+      document.getElementById("likeBox").classList.remove("liked");
+      document.getElementById("modalLikes").textContent = p.likes;
+    }
+  }
+  document.getElementById("modalDislikes").textContent = p.dislikes;
+  updateRating(p);
+});
+
+function openModal(p) {
+  currentProfile = p;
+  const meta = profileMeta[p.id];
+  document.getElementById("modalPhoto").src = p.img;
+  document.getElementById("modalPhoto").style.display = "block";
+  document.getElementById("modalPhotoFallback").style.display = "none";
+  document.getElementById("modalName").textContent = p.name;
+  document.getElementById("modalAge").textContent  = `Age ${p.age}`;
+  document.getElementById("modalViews").textContent = p.offline ? 0 : vc[p.id];
+  document.getElementById("modalLikes").textContent    = p.likes;
+  document.getElementById("modalDislikes").textContent = p.dislikes;
+  const rating = Math.round((p.likes / (p.likes + p.dislikes)) * 100);
+  document.getElementById("modalRating").textContent = rating + "%";
+  document.getElementById("modalLiveBadge").style.display   = p.offline ? "none"  : "block";
+  document.getElementById("modalOfflineBadge").style.display = p.offline ? "block" : "none";
+
+  const likeBox    = document.getElementById("likeBox");
+  const dislikeBox = document.getElementById("dislikeBox");
+  likeBox.classList.remove("liked");
+  dislikeBox.classList.remove("disliked");
+  if (userVotes[p.id] === "like")    likeBox.classList.add("liked");
+  if (userVotes[p.id] === "dislike") dislikeBox.classList.add("disliked");
+
+  document.getElementById("modalLikeTags").innerHTML    = meta.likeTags.map(t=>`<span class="modal-tag tag-like">♥ ${t}</span>`).join("");
+  document.getElementById("modalDislikeTags").innerHTML = meta.dislikeTags.map(t=>`<span class="modal-tag tag-dislike">✕ ${t}</span>`).join("");
+
+  const btn = document.getElementById("modalWatchBtn");
+  if (p.offline) {
+    btn.className   = "modal-watch-btn offline-btn";
+    btn.textContent = "⛔ CURRENTLY OFFLINE";
+    btn.onclick     = null;
+  } else {
+    btn.className   = "modal-watch-btn";
+    btn.textContent = "▶ WATCH LIVE";
+    btn.onclick = () => {
+      localStorage.setItem("vip_profile", JSON.stringify({
+        id: p.id, name: p.name, img: p.img, viewers: vc[p.id]
+      }));
+      window.location.href = "live.html";
+    };
+  }
+  document.getElementById("profileModal").classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeModal() {
+  document.getElementById("profileModal").classList.remove("open");
+  document.body.style.overflow = "";
+  currentProfile = null;
+}
+
+document.getElementById("modalClose").onclick = closeModal;
+document.getElementById("profileModal").addEventListener("click", e => {
+  if (e.target === document.getElementById("profileModal")) closeModal();
+});
+
+function buildGrid(gridId, items) {
+  const el = document.getElementById(gridId);
+  el.innerHTML = "";
+  items.forEach(p => {
+    const card = document.createElement("div");
+    card.className = "stream-card";
+    const displayViews = p.offline ? 0 : vc[p.id];
+    card.innerHTML = `
+      <img src="${p.img}" alt="${p.name}"
+        onerror="this.style.background='#181828';this.removeAttribute('src')"
+        loading="lazy"/>
+      <div class="card-grad"></div>
+      ${p.offline ? '' : '<div class="live-pill">LIVE</div>'}
+      <div class="card-info">
+        <div class="card-name">${p.name}</div>
+        <div class="card-views">👁 <span id="v-${p.id}">${displayViews}</span></div>
+      </div>
+      ${p.offline ? '<div class="offline-cover"><span class="offline-label">⛔ OFFLINE</span></div>' : ''}
+    `;
+    card.addEventListener("click", () => openModal(p));
+    el.appendChild(card);
+  });
+}
+
+buildGrid("grid-girls",   profiles.girls);
+buildGrid("grid-couples", profiles.couples);
+
+const liveCount = [...profiles.girls, ...profiles.couples].filter(p=>!p.offline).length;
+document.getElementById("total-live").textContent = `${liveCount} LIVE NOW`;
+
+setInterval(() => {
+  Object.keys(vc).forEach(id => {
+    const el = document.getElementById(`v-${id}`);
+    if (!el) return;
+    const prof = [...profiles.girls,...profiles.couples].find(p=>p.id===id);
+    if (!prof || prof.offline) return;
+    let v = vc[id] + Math.floor(Math.random()*5) - 2;
+    v = Math.max(20, Math.min(100, v));
+    vc[id] = v;
+    el.textContent = v;
+    if (currentProfile && currentProfile.id === id)
+      document.getElementById("modalViews").textContent = v;
+  });
+}, 3000);
+
+const tabs   = document.querySelectorAll(".tab-item");
+const OFFSET = 112;
+tabs.forEach(tab => {
+  tab.addEventListener("click", () => {
+    const sec = document.getElementById(tab.dataset.sec);
+    if (!sec) return;
+    const top = sec.getBoundingClientRect().top + window.scrollY - OFFSET;
+    window.scrollTo({ top, behavior: "smooth" });
+    tabs.forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+  });
+});
+const secIds = ["sec-girls","sec-couples"];
+window.addEventListener("scroll", () => {
+  let cur = "sec-girls";
+  secIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && window.scrollY + OFFSET + 5 >= el.offsetTop) cur = id;
+  });
+  tabs.forEach(t => t.classList.remove("active"));
+  const found = [...tabs].find(t => t.dataset.sec === cur);
+  if (found) found.classList.add("active");
+}, { passive:true });
+</script>
+</body>
+</html>
